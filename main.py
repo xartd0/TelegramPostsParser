@@ -30,5 +30,3 @@ async def my_event_handler(event):
     print(event.message)
 
 client.run_until_disconnected()
-
-1
