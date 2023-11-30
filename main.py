@@ -1,6 +1,5 @@
 from telethon import TelegramClient, events
 from telethon.tl.types import PeerChannel
-import telethon
 from config import * 
 
 client = TelegramClient(
@@ -14,19 +13,54 @@ client = TelegramClient(
     system_lang_code="en-US")
 
 client.start(PHONE, PASSWORD)
-last_post_date = ''
 
-async def send_mess(message, file):
+last_post_group_id = ''
+current_mes_text = ''
+current_post_id = 0
+
+current_post = []
+async def send_mess():
+    global current_mes_text
     try:
-        await client.send_message(entity=CHANNEL_TO_SEND, message=message, file=file)
+        await client.send_message(entity=CHANNEL_TO_SEND, message=current_mes_text, file=current_post)
     except AttributeError and TypeError:
-        await client.send_message(entity=CHANNEL_TO_SEND, message=message)
-    except telethon.errors.rpcerrorlist.MediaCaptionTooLongError:
-        caption_long_message = await client.send_message(entity=CHANNEL_TO_SEND, message=message)
-        await client.send_file(entity=CHANNEL_TO_SEND, file=file, reply_to=caption_long_message)
+        await client.send_message(entity=CHANNEL_TO_SEND, message=current_mes_text)
+    current_post.clear()
+    current_mes_text = ''
+
+@client.on(events.Album(chats=CHANNEL_TO_TRACK))
+async def handler(event):
+    print(1)
+
+    await event.delete()
+
+    raise events.StopPropagation
 
 @client.on(events.NewMessage(PeerChannel(channel_id=CHANNEL_TO_TRACK)))
 async def my_event_handler(event):
-    print(event.message)
+
+    print(2)
+    global last_post_group_id
+    global current_mes_text
+    global current_post_id
+    print(event.message.grouped_id)
+
+    if event.message.grouped_id == last_post_group_id or last_post_group_id == '':
+        current_post.append(event.message.media)
+        if event.message.message != '':
+            current_mes_text = event.message.message
+            current_post_id = event.message.fwd_from.channel_post
+        post = await client.get_messages(event.message.fwd_from.from_id.channel_id,
+                                         ids=event.message.fwd_from.channel_post)
+        print(event.message.fwd_from.channel_post)
+        print(post)
+        print('added')
+    else:
+        await send_mess()
+        print('sended')
+    last_post_group_id = event.message.grouped_id
+
+
 
 client.run_until_disconnected()
+
