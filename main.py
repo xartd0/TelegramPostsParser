@@ -27,6 +27,7 @@ async def send_mess(message, file):
 
 @client.on(events.NewMessage(PeerChannel(channel_id=CHANNEL_TO_TRACK)))
 async def my_event_handler(event):
+    print('kfkf')
     print(event.message)
 
 client.run_until_disconnected()
