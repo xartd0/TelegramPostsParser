@@ -1,6 +1,8 @@
-PASSWORD = ''
-API_HASH = ''
-API_ID = ''
+PASSWORD = '' # Указываем ваш пароль, если есть пароль на 2fa
 PHONE = ''
-CHANNEL_TO_SEND = 0
-CHANNEL_TO_TRACK = 0
+
+API_ID = ''
+API_HASH = ''
+
+CHANNEL_TO_SEND = 
+CHANNEL_TO_TRACK = 
