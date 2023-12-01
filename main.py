@@ -18,6 +18,7 @@ client = TelegramClient(
 client.start(PHONE, PASSWORD)
 
 sended_messages = []
+temp_media_path = 'temp_post_media/'
 
 
 def check_id(new_id, file_path='last_ids.txt'):
@@ -53,15 +54,15 @@ async def download_photos(message, is_group):
         messages = await client.get_messages(CHANNEL_TO_TRACK, limit=10)
         for message_check in messages:
             if message_check.grouped_id == message.grouped_id:
-                await client.download_media(message_check.media, "temp_post_media/")
+                await client.download_media(message_check.media, temp_media_path)
                 media_count += 1
             if message_check.message != '':
                 current_post_text = message_check.message
     else:
-        await client.download_media(message.media, "temp_post_media/")
+        await client.download_media(message.media, temp_media_path)
 
-    media_files = ['temp_post_media/' + f for f in os.listdir('temp_post_media/') if
-                   os.path.isfile(os.path.join('temp_post_media/', f))]
+    media_files = [temp_media_path + f for f in os.listdir(temp_media_path) if
+                   os.path.isfile(os.path.join(temp_media_path, f))]
 
     return current_post_text, media_count, media_files
 
@@ -101,6 +102,10 @@ async def send_message(message):
 
 
 async def main():
+
+    if not os.path.exists(temp_media_path): #Checking for the existence of a folder
+        os.makedirs(temp_media_path)
+
     while True:
         message_to_copy = await get_new_messages()
         if message_to_copy is not None:
