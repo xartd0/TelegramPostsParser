@@ -1,5 +1,5 @@
 from telethon.sync import TelegramClient
-from telethon.tl.types import MessageMediaPhoto
+from telethon.tl.types import MessageMediaWebPage
 import asyncio
 import os
 from config import *
@@ -46,12 +46,12 @@ def write_last_id(new_id, file_path='last_ids.txt'):
         print(f"Произошла ошибка при записи файла {file_path}: {e}")
 
 
-async def download_photos(message, is_group):
+async def download_photos(message, is_group, channel_t):
     current_post_text = ''
     media_count = 0
 
     if is_group:
-        messages = await client.get_messages(CHANNEL_TO_TRACK, limit=10)
+        messages = await client.get_messages(channel_t, limit=10)
         for message_check in messages:
             if message_check.grouped_id == message.grouped_id:
                 await client.download_media(message_check.media, temp_media_path)
@@ -67,8 +67,8 @@ async def download_photos(message, is_group):
     return current_post_text, media_count, media_files
 
 
-async def get_new_messages():
-    async for message in client.iter_messages(CHANNEL_TO_TRACK, limit=1):
+async def get_new_messages(channel_t):
+    async for message in client.iter_messages(channel_t, limit=1):
         if message.grouped_id is not None:
             if not check_id(message.grouped_id):
                 return message
@@ -80,20 +80,20 @@ async def get_new_messages():
             return None
 
 
-async def send_message(message):
+async def send_message(message, channel_t, channel_name):
     global sended_messages
     media_files = None
 
     if message.grouped_id is not None:
-        group_text, count, media_files = await download_photos(message, True)
-        await client.send_file(entity=CHANNEL_TO_SEND, caption=group_text, file=media_files)
+        group_text, count, media_files = await download_photos(message, True, channel_t)
+        await client.send_file(entity=CHANNEL_TO_SEND, caption='\n' + channel_name + '\n' + group_text, file=media_files)
         write_last_id(message.grouped_id)
     else:
-        if message.media:
-            _, _, media_files = await download_photos(message, False)
-            await client.send_message(entity=CHANNEL_TO_SEND, message=message.message, file=media_files)
+        if message.media and not isinstance(message.media, (MessageMediaWebPage,)):
+            _, _, media_files = await download_photos(message, False, channel_t)
+            await client.send_message(entity=CHANNEL_TO_SEND, message='\n' + channel_name + '\n' + message.message, file=media_files)
         else:
-            await client.send_message(entity=CHANNEL_TO_SEND, message=message.message)
+            await client.send_message(entity=CHANNEL_TO_SEND, message='\n' + channel_name + '\n' +  message.message)
         write_last_id(message.id)
 
     if media_files is not None:
@@ -103,15 +103,19 @@ async def send_message(message):
 
 async def main():
 
+    current_channel = 0
+
     if not os.path.exists(temp_media_path): #Checking for the existence of a folder
         os.makedirs(temp_media_path)
 
     while True:
-        message_to_copy = await get_new_messages()
-        if message_to_copy is not None:
-            await send_message(message_to_copy)
+        for channel_t in CHANNEL_TO_TRACK:
+            print(channel_t[1])
+            message_to_copy = await get_new_messages(channel_t[1])
+            if message_to_copy is not None:
+                await send_message(message_to_copy, channel_t[1], channel_t[0])
 
-        await asyncio.sleep(10)  # Adjust the sleep time as needed
+            await asyncio.sleep(10)  # Adjust the sleep time as needed
 
 with client:
     client.loop.run_until_complete(main())
