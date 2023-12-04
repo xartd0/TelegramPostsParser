@@ -49,6 +49,10 @@ def write_last_id(new_id, file_path='last_ids.txt'):
 async def download_photos(message, is_group, channel_t):
     current_post_text = ''
     media_count = 0
+    
+    
+    if message.message != '':
+      current_post_text = message.message
 
     if is_group:
         messages = await client.get_messages(channel_t, limit=10)
@@ -57,13 +61,14 @@ async def download_photos(message, is_group, channel_t):
                 await client.download_media(message_check.media, temp_media_path)
                 media_count += 1
             if message_check.message != '':
-                current_post_text = message_check.message
+                if current_post_text == '':
+                  current_post_text = message_check.message
     else:
         await client.download_media(message.media, temp_media_path)
 
     media_files = [temp_media_path + f for f in os.listdir(temp_media_path) if
                    os.path.isfile(os.path.join(temp_media_path, f))]
-
+                   
     return current_post_text, media_count, media_files
 
 
@@ -80,20 +85,20 @@ async def get_new_messages(channel_t):
             return None
 
 
-async def send_message(message, channel_t, channel_name):
+async def send_message(message, channel_t):
     global sended_messages
     media_files = None
 
     if message.grouped_id is not None:
         group_text, count, media_files = await download_photos(message, True, channel_t)
-        await client.send_file(entity=CHANNEL_TO_SEND, caption='\n' + channel_name + '\n' + group_text, file=media_files)
+        await client.send_file(entity=CHANNEL_TO_SEND, caption=group_text, file=media_files)
         write_last_id(message.grouped_id)
     else:
         if message.media and not isinstance(message.media, (MessageMediaWebPage,)):
             _, _, media_files = await download_photos(message, False, channel_t)
-            await client.send_message(entity=CHANNEL_TO_SEND, message='\n' + channel_name + '\n' + message.message, file=media_files)
+            await client.send_message(entity=CHANNEL_TO_SEND, message=message.message, file=media_files)
         else:
-            await client.send_message(entity=CHANNEL_TO_SEND, message='\n' + channel_name + '\n' +  message.message)
+            await client.send_message(entity=CHANNEL_TO_SEND, message=message.message)
         write_last_id(message.id)
 
     if media_files is not None:
@@ -109,13 +114,11 @@ async def main():
         os.makedirs(temp_media_path)
 
     while True:
-        for channel_t in CHANNEL_TO_TRACK:
-            print(channel_t[1])
-            message_to_copy = await get_new_messages(channel_t[1])
-            if message_to_copy is not None:
-                await send_message(message_to_copy, channel_t[1], channel_t[0])
+          message_to_copy = await get_new_messages(CHANNEL_TO_TRACK)
+          if message_to_copy is not None:
+              await send_message(message_to_copy, CHANNEL_TO_TRACK)
 
-            await asyncio.sleep(10)  # Adjust the sleep time as needed
+          await asyncio.sleep(10)  # Adjust the sleep time as needed
 
 with client:
     client.loop.run_until_complete(main())
